@@ -168,6 +168,7 @@ class Zen_Garden:
 
     def solve_colission(self, genome: int, garden: list, coor: dict()) -> dict():
         if coor['move'][0] == 0: # ak sa mnich presuval medzi stlpcami
+            # bude sa otacat bud hore alebo dole
             up = dict()
             up['move'] = [-1, 0]
             up['row'] = coor['row'] + up['move'][0]
@@ -199,6 +200,7 @@ class Zen_Garden:
                         return up
 
         elif coor['move'][1] == 0: # ak sa mnich presuval medzi riadkami
+            # bude sa otacat bud doprava alebo dolava
             right = dict()
             right['move'] = [0, 1]
             right['row'] = coor['row']
@@ -255,8 +257,8 @@ class Evolution_algorithm:
         self.POPULATION_SIZE = 40 # velkost populacie
         self.CROSSOVER_RATE = 0.95 # sanca na krizenie
         self.GENERATIONS_MAX = 2500 # maximalny pocet generacii
-        self.MUTATION_MIN_PERC = 0.1 # minimalne % mutacie
-        self.MUTATION_MAX_PERC = 0.5 # maximalne % mutacie
+        self.MUTATION_MIN_PERC = 0.05 # minimalne % mutacie
+        self.MUTATION_MAX_PERC = 0.4 # maximalne % mutacie
 
         self.garden = garden # instancia triedy Zen_garden
         self.genome_num = self.get_num_of_genome() # pocet genomov sa rovna polovici obvodu zahrady + pocet kamenov
@@ -276,7 +278,7 @@ class Evolution_algorithm:
         max_fitness = 0 # najvyssia dosiahnuta fitnes
         max_i = 0 # index jedinca s maximalnou fitness
         prev_max_fitness = 0 # predosla najvyssia dosiahnuta fitnes
-        same_max_fitness_counter = 0
+        local_max_fitness_counter = 0 # kolko si drzi generacia lokalne maximum
 
         while generation_counter < self.GENERATIONS_MAX:
             monks = [[0 for i in range(self.POPULATION_SIZE)] for j in range(self.genome_num)] # list mnichov jednotlivcov
@@ -296,28 +298,28 @@ class Evolution_algorithm:
                 self.garden.rake_garden(self.population[max_i]) # vypise pohrabanu celu zahradu
                 print('Vitazny chromozom: ', self.population[max_i])
                 self.garden.print_garden_bool = False
-                print('Cas trvania evolucie: ', (self.end_time - self.start_time))
+                print('Cas trvania evolucie: ', (self.end_time - self.start_time),' sekund')
                 break # koniec
 
-            # uprava hodnot mutacie, ak sme uz dlho vo fitnes v lokalnom maxime
+            # zresetuj hodnotu mutacie, ak sa zvysila maximalna fitnes alebo percento mutacie prekrocilo maximalnu stanovenu hodnotu
             if (max_fitness != prev_max_fitness) or (mutation_value >= self.MUTATION_MAX_PERC):
-                # ak sa zvysila maximalna fitnes alebo percento mutacie prekrocilo maximalnu stanovenu hodnou
+                local_max_fitness_counter = 0 # lokalne maximum sa zmenilo, tak sa nuluje pocitadlo
                 prev_max_fitness = max_fitness # zapis si novu maximalne fitnes
                 mutation_value = self.MUTATION_MIN_PERC # zresetuj percento mutacie
-            else:
-                same_max_fitness_counter += 1
+            else: # inak zvys mutaciu, ak sa maximalne fitnes nemeni
+                local_max_fitness_counter += 1
                 if mutation_value < self.MUTATION_MAX_PERC:
                     mutation_value += 0.01
 
-            if same_max_fitness_counter == int(self.POPULATION_SIZE):
+            if local_max_fitness_counter == int(self.POPULATION_SIZE): 
+                # ak pocitadlo lokalneho maxima dosiahne hodnotu velkosti jednej populacie
+                # vyhubi sa polovica generacie a vygeneruje sa druha polovica nova
+                local_max_fitness_counter = 0
                 self.population = self.population[:int(self.POPULATION_SIZE/2)]
                 self.generate_first_population(int(self.POPULATION_SIZE - int(self.POPULATION_SIZE/2)))
-                same_max_fitness_counter = 0
-
 						
             self.generate_new_population(population_fitness, mutation_value, max_i)
             population_fitness.clear()
-
             generation_counter += 1
 
     #vytvorenie novej generacie
@@ -362,8 +364,8 @@ class Evolution_algorithm:
 
                 for child in range(2):
                     for j in range(self.genome_num):
-                        if (random.uniform(0, 1) < mutation_value):
-                            genome_mutation = int(random.uniform(0, 1) * ((self.garden.half_perimeter) * 2) - 1) + 1
+                        if (random.uniform(0, 1) < mutation_value): # mutacia
+                            genome_mutation = int(random.uniform(0, 1) * ((self.garden.half_perimeter) * 2) - 1) + 1 # vygeneruje novy gen
                             if random.randrange(0, 10) < 5:
                                 # sanca 50%, ze vygeneruje bud kladne alebo zaporne cislo -> to ovplyvni vyber smeru pri zrazke s prekazkou 
                                 genome_mutation *= -1
@@ -381,7 +383,7 @@ class Evolution_algorithm:
                     children[i][j] = self.population[monk1][j]
                     children[i+1][j] = self.population[monk2][j]
 
-        for i in range(self.genome_num): # eliarizmus, ulozime si toho najlepsieho
+        for i in range(self.genome_num): # elitarizmus, ulozime si toho najlepsieho zo starej generacie
             children[0][i] = self.population[max_i][i]
 
         self.copy_new_population(children)
@@ -397,7 +399,7 @@ class Evolution_algorithm:
                 self.population[i].append(element)
             i += 1
 
-    # vyber 2 rodicov turnamentom
+    # vyber rodica turnamentom -> vrati index toho rodica
     def tournament(self, population_fitness: list) -> int:
         monk1 = int(random.uniform(0, 1) * self.POPULATION_SIZE) # random index z populacie
         monk2 = int(random.uniform(0, 1) * self.POPULATION_SIZE) # random index z populacie
@@ -436,20 +438,25 @@ class Evolution_algorithm:
     def get_num_of_genome(self) -> int: # funkcia vrati pocet genov v chromozome
         return self.garden.half_perimeter + self.garden.stones_num
 
-    def list_duplicates_of(self, l: list, item: int) -> list:
+    def list_duplicates_of(self, l: list, item: int) -> list: 
+        # funkcia vrati indexy duplicatov item v liste l
         return [i for i, x in enumerate(l) if x == item]
 
 
 # main funckia
 def main():
     file_name = pathlib.Path(__file__).parent.absolute()
-    file_name = str(file_name) + "\\zen_garden_parameters.txt"
+    file_name = str(file_name) + "\\zen_garden_parameters.txt" # meno textoveho suboru s parametrami zenovej zahrady
     print("Zadanie 3 - Zenova zahrada\n")
     print("Parametre zenovej zahrady su zapisane v textovom subore\n", file_name,"\nv tvare \'sirka(int) vyska(int) kamene(int) vypis_zahrady(bool)\'")
 
     try:
-        with open(file_name, 'r') as f: # otvorenie suboru s parametrami zenovej zahrady
+        with open(file_name, 'r') as f: # otvorenie textoveho suboru s parametrami zenovej zahrady
             lines = f.readlines() # ulozenie jednotlivych riadkov do listu
+        
+        if lines == []: # ak je subor prazdny, vygeneruje sa mapa zo zadania
+            garden = Zen_Garden(garden_size=[], stones_num=None, print_garden_bool=False) # vytvorenie zahrady
+            Evolution_algorithm(garden) # spustenie evolucneho algoritmu
 
         for line in lines:
             garden_size = [] # list so sirkou a vyskou zahrady
@@ -457,7 +464,7 @@ def main():
             print_garden = False
 
             param = line.split()
-            print('\nNova zahrada', param)
+            print('\nNova zahrada', param,'\n')
             for i in range(len(param)):
                 if i == 0:
                     garden_size.append(int(param[i])) # sirka zahrady
@@ -480,7 +487,7 @@ def main():
             garden = Zen_Garden(garden_size=garden_size, stones_num=stones_num, print_garden_bool=print_garden) # vytvorenie zahrady
             Evolution_algorithm(garden) # spustenie evolucneho algoritmu
 
-    except (IOError, FileNotFoundError) as e: # eror, ak nemoze subor najst alebo precitat
+    except (IOError, FileNotFoundError) as e: # error, ak nemoze subor najst alebo precitat
         print("\n\tERROR: Subor ", file_name," sa nenasiel, zahrada bude vytvorena podla predlohy zo zadania\n")
         garden = Zen_Garden() # vytvorenie zahrady
         Evolution_algorithm(garden) # spustenie evolucneho algoritmu
