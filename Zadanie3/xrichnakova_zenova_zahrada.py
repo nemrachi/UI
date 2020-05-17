@@ -3,6 +3,15 @@ import pathlib
 import time
 import copy
 
+def append_to_file(a_string = ''):
+    file_name = pathlib.Path(__file__).parent.absolute()
+    file_name = str(file_name) + "\\output.txt" # meno textoveho suboru s vysledkami hrabania
+    try:
+        with open(file_name, 'a') as f:
+            f.write(a_string)
+    except (IOError, FileNotFoundError) as e:
+        print("\n\tERROR: Subor ", file_name," sa nenasiel\n")
+
 # trieda zahrady
 class Zen_Garden:
     # garden_size = velkost zahrady [sirka, vyska], stone_num = pocet kamenov v zahrade, print_garden_bool = rozhoduje, ci sa ma tlacit zahrada pocas hrabania
@@ -281,12 +290,10 @@ class Evolution_algorithm:
         local_max_fitness_counter = 0 # kolko si drzi generacia lokalne maximum
 
         while generation_counter < self.GENERATIONS_MAX:
-            monks = [[0 for i in range(self.POPULATION_SIZE)] for j in range(self.genome_num)] # list mnichov jednotlivcov
-            i = 0
-            for pop in self.population:
+            for monk in self.population:
                 # pohrabanie zahrady populaciou a zistenie fitnes kazdeho jedinca
                 # vlozi sa chromozon mnicha do funkcie rake_garden()
-                population_fitness.append(self.garden.rake_garden(pop))
+                population_fitness.append(self.garden.rake_garden(monk))
 
             max_fitness = max(population_fitness)
             max_i = population_fitness.index(max_fitness)      
@@ -299,6 +306,8 @@ class Evolution_algorithm:
                 print('Vitazny chromozom: ', self.population[max_i])
                 self.garden.print_garden_bool = False
                 print('Cas trvania evolucie: ', (self.end_time - self.start_time),' sekund')
+                # a_string = str(max_fitness) + ' ' + str(generation_counter) + '\n'
+                # append_to_file(a_string=a_string)
                 break # koniec
 
             # zresetuj hodnotu mutacie, ak sa zvysila maximalna fitnes alebo percento mutacie prekrocilo maximalnu stanovenu hodnotu
@@ -374,9 +383,9 @@ class Evolution_algorithm:
                             if indexes_duplicate_value == []: # ak sa nenasiel duplikat cisla genome_muation
                                 children[i + child][j] = genome_mutation # zmutuje dany gen
                             else: # vymeny geny na indexoch
-                                tmp = children[i + child][j]
-                                children[i + child][j] = children[i + child][indexes_duplicate_value[0]]
-                                children[i + child][indexes_duplicate_value[0]] = tmp
+                                tmp = children[i + child][j] # ulozi si aktualne meneni gen
+                                children[i + child][j] = children[i + child][indexes_duplicate_value[0]] # namiesto aktualneho da novy gen (duplikat)
+                                children[i + child][indexes_duplicate_value[0]] = tmp # do index genu, kde bol duplikat da aktualny gen
 
             else: # ak sa nekrizi, tak len kopiruje jedincov do novej generacie
                 for j in range(self.genome_num):
@@ -451,6 +460,7 @@ def main():
     print("Parametre zenovej zahrady su zapisane v textovom subore\n", file_name,"\nv tvare \'sirka(int) vyska(int) kamene(int) vypis_zahrady(bool)\'")
 
     try:
+        raise IOError
         with open(file_name, 'r') as f: # otvorenie textoveho suboru s parametrami zenovej zahrady
             lines = f.readlines() # ulozenie jednotlivych riadkov do listu
         
