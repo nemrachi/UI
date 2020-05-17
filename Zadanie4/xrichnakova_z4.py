@@ -75,7 +75,7 @@ def remove_empty_knowledge():
         knowledge_base.remove(None)
 
 
-def get_knowledge(rule: dict, con_index: int, variables: dict, index: int) -> list:
+def get_knowledge(rule: dict, con_index: int, variables: dict) -> list:
     global knowledge_base
     remove_empty_knowledge()
 
@@ -86,8 +86,10 @@ def get_knowledge(rule: dict, con_index: int, variables: dict, index: int) -> li
         if "?" not in p: relationship += p + " "
     relationship = relationship[:len(relationship)-1]
 
-    for f in knowledge_base[index:]:
+    for f in knowledge_base:
         f_split = f.split()  
+        if con_index == 0:
+            print("")
         
         if relationship in f:
             if variables == {}: #or (not all(type(value) != int for value in variables.values())):
@@ -95,7 +97,7 @@ def get_knowledge(rule: dict, con_index: int, variables: dict, index: int) -> li
                     if p.startswith("?"): # zistime indexy premennych v patterne
                         variables[p[1:]] = f_split[con_pattern.index(p)] 
 
-                new_knowledge = get_knowledge(rule, con_index + 1, variables, knowledge_base.index(f)+1)
+                new_knowledge = get_knowledge(rule, con_index + 1, variables)
                 if (new_knowledge not in knowledge_base) and (new_knowledge != None):
                     knowledge_base.append(new_knowledge)
                 
@@ -104,7 +106,12 @@ def get_knowledge(rule: dict, con_index: int, variables: dict, index: int) -> li
             else:
                 add_knowledge = False
                 for v_key in variables.keys():
+                    print(con_pattern)
+                    print(f)
+                    print(variables[v_key])
                     if (variables[v_key] in f) and (("?" + v_key) in con_pattern):
+                        if (variables[v_key] == f[con_pattern.index(("?" + v_key))]):
+                            continue
                         for p in con_pattern:
                             if p.startswith("?"): # zistime indexy premennych v patterne
                                 variables[p[1:]] = f_split[con_pattern.index(p)] 
@@ -112,7 +119,7 @@ def get_knowledge(rule: dict, con_index: int, variables: dict, index: int) -> li
                         break
 
                 if not add_knowledge:
-                    break
+                    continue
 
                 rule_action = rule[ACTION]
 
@@ -144,7 +151,7 @@ def knowledge_base_agent(facts: list, rules: dict):
         if "Matka" in name:
             print(name)
             print(knowledge_base)
-        knowledge_base.append(get_knowledge(rules[name], 0, {}, 0))
+        knowledge_base.append(get_knowledge(rules[name], 0, {}))
 
     remove_empty_knowledge()
 
