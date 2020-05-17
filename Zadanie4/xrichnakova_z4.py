@@ -69,31 +69,24 @@ def test_obtaining():
     except (IOError, FileNotFoundError) as e: # error, ak nemoze subor najst alebo precitat
         print("\n\tERROR: Subory sa nenasli\n")
 
-def remove_empty_or_same_knowledge():
+def remove_empty_knowledge():
     global knowledge_base
     if None in knowledge_base:
         knowledge_base.remove(None)
-    if "" in knowledge_base:
-        knowledge_base.remove("")
-
-    print("\t\t", knowledge_base)
 
 
-def get_knowledge(rule: dict, con_index: int, variables: dict) -> list:
+def get_knowledge(rule: dict, con_index: int, variables: dict, index: int) -> list:
     global knowledge_base
-    remove_empty_or_same_knowledge()
+    remove_empty_knowledge()
 
     con_pattern = rule[CONDITION][con_index].split()
-
-    if rule[CONDITION][1].startswith('zena'):
-        print("")
 
     relationship = ""
     for p in con_pattern:
         if "?" not in p: relationship += p + " "
     relationship = relationship[:len(relationship)-1]
 
-    for f in knowledge_base:
+    for f in knowledge_base[index:]:
         f_split = f.split()  
         
         if relationship in f:
@@ -102,8 +95,8 @@ def get_knowledge(rule: dict, con_index: int, variables: dict) -> list:
                     if p.startswith("?"): # zistime indexy premennych v patterne
                         variables[p[1:]] = f_split[con_pattern.index(p)] 
 
-                new_knowledge = get_knowledge(rule, con_index + 1, variables)
-                if new_knowledge not in knowledge_base:
+                new_knowledge = get_knowledge(rule, con_index + 1, variables, knowledge_base.index(f)+1)
+                if (new_knowledge not in knowledge_base) and (new_knowledge != None):
                     knowledge_base.append(new_knowledge)
                 
                 variables = {}
@@ -111,21 +104,15 @@ def get_knowledge(rule: dict, con_index: int, variables: dict) -> list:
             else:
                 add_knowledge = False
                 for v_key in variables.keys():
-                    if variables[v_key] in f:
-                        print(rule)
-                        print("\t", con_pattern)
-                        print("\t", f_split)
-                        if con_pattern.index("?" + v_key) == f_split.index(variables[v_key]):
-                            for p in con_pattern:
-                                if p.startswith("?"): # zistime indexy premennych v patterne
-                                    variables[p[1:]] = f_split[con_pattern.index(p)] 
-                            add_knowledge = True
-                            break
-                        else:
-                            return ""
+                    if (variables[v_key] in f) and (("?" + v_key) in con_pattern):
+                        for p in con_pattern:
+                            if p.startswith("?"): # zistime indexy premennych v patterne
+                                variables[p[1:]] = f_split[con_pattern.index(p)] 
+                        add_knowledge = True
+                        break
 
                 if not add_knowledge:
-                    return ""
+                    break
 
                 rule_action = rule[ACTION]
 
@@ -140,10 +127,11 @@ def get_knowledge(rule: dict, con_index: int, variables: dict) -> list:
                             knowledge += a + " "
 
                 knowledge = knowledge[:len(knowledge)-1]
-                print("Knowledge: ", knowledge)
+                print("Knowledge1: ", knowledge)
 
 
                 if con_index + 1 == len(rule[CONDITION]):
+                    print("Knowledge2: ", knowledge, end="\n\n")
                     return knowledge
         else:
             continue
@@ -153,7 +141,12 @@ def knowledge_base_agent(facts: list, rules: dict):
     global knowledge_base
     knowledge_base = facts
     for name in rules:
-        knowledge_base.append(get_knowledge(rules[name], 0, {}))
+        if "Matka" in name:
+            print(name)
+            print(knowledge_base)
+        knowledge_base.append(get_knowledge(rules[name], 0, {}, 0))
+
+    remove_empty_knowledge()
 
 
 def main():
@@ -184,6 +177,9 @@ def main():
         facts = obtain_facts(facts, lines_facts)
         # ziskava znalosti
         knowledge_base_agent(facts, rules)
+
+        for k in knowledge_base:
+            print(k)
             
     except (IOError, FileNotFoundError) as e: # error, ak nemoze subor najst alebo precitat
         print("\n\tERROR: Subory sa nenasli\n")
